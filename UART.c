@@ -4,44 +4,46 @@ volatile uint16_t vdig[6];
 
 extern void Configurar_UART1(void)
 {
-    SYSCTL->RCGCUART  = (1<<1);   //Paso 1 (RCGCUART) pag.344 UART/modulo0 0->Disable 1->Enable
-    SYSCTL->RCGCGPIO |= (1<<1);     //Paso 2 (RCGCGPIO) pag.340 Enable clock port A
+    SYSCTL->RCGCUART  = (1<<0);   //Paso 1 (RCGCUART) pag.344 UART/modulo0 0->Disable 1->Enable
+    SYSCTL->RCGCGPIO |= (1<<0);     //Paso 2 (RCGCGPIO) pag.340 Enable clock port A
     //(GPIOAFSEL) pag.671 Enable alternate function
    
-            GPIOB_AHB->AFSEL = (1<<1) | (1<<0); //GPIO Port Control (GPIOPCTL) PA1-> U1Rx PB1-> U1Tx pag.688
-            GPIOB_AHB->DIR =(1<<1) | (0<<0);
+            GPIOA_AHB->AFSEL = (1<<1) | (1<<0); //GPIO Port Control (GPIOPCTL) PA1-> U1Rx PB1-> U1Tx pag.688
+            GPIOA_AHB->DIR =(1<<1) | (0<<0);
+
             //GPIO Port Control (GPIOPCTL) PA0-> U0Rx PA1-> U0Tx pag.688
-            GPIOB_AHB->PCTL = (GPIOB_AHB->PCTL&0xFFFFFF00) | 0x00000011;// (1<<0) | (1<<4);//0x00000011
+            GPIOA_AHB->PCTL = (GPIOA_AHB->PCTL&0xFFFFFF00) | 0x00000011;// (1<<0) | (1<<4);//0x00000011
+            
             // GPIO Digital Enable (GPIODEN) pag.682
-            GPIOB_AHB->DEN = (1<<0) | (1<<1);//PA1 PA0 //UART0 UART Control (UARTCTL) pag.918 DISABLE!!
-            GPIOB_AHB->AMSEL=0x00;
+            GPIOA_AHB->DEN = (1<<0) | (1<<1);//PA1 PA0 //UART0 UART Control (UARTCTL) pag.918 DISABLE!!
+            GPIOA_AHB->AMSEL=0x00;
     
-        UART1->CTL = (0<<9) | (0<<8) | (0<<0)| (0<<4);
+        UART0->CTL = (0<<9) | (0<<8) | (0<<0)| (0<<4);
 
     // UART Integer Baud-Rate Divisor (UARTIBRD) pag.914
     /*
-    BRD = 25,000,000 / (16 * 9600) = 162.76
-    UARTFBRD[DIVFRAC] = integer(0.76 * 64 + 0.5) = 49.14
+    BRD = 20,000,000 / (16 * 9600) = 130.2
+    UARTFBRD[DIVFRAC] = integer(0.2 * 64 + 0.5) = 14
     */
-        UART1->IBRD = 162;
+        UART0->IBRD = 130;
     // UART Fractional Baud-Rate Divisor (UARTFBRD) pag.915
-        UART1->FBRD = 49;
+        UART0->FBRD = 14;
     //  UART Line Control (UARTLCRH) pag.916
-        UART1->LCRH = (0x3<<5)|(1<<4);
+        UART0->LCRH = (0x3<<5)|(1<<4);
     //  UART Clock Configuration(UARTCC) pag.939
   
-        UART1->CC =(0<<0);
+        UART0->CC =(0<<0);
     //Disable UART0 UART Control (UARTCTL) pag.918
-        UART1->CTL = (1<<0) | (1<<8) | (1<<9)| (1<<4);
+        UART0->CTL = (1<<0) | (1<<8) | (1<<9)| (1<<4);
 
 
 
 }
 extern void trans_char(char c)
 { 
-     while((UART1->FR & (1<<5))!=0);
+     while((UART0->FR & (1<<5))!=0);
     {
-        UART1->DR=c;
+        UART0->DR=c;
     }
 }
 
@@ -55,24 +57,16 @@ trans_char('\n');
 }
 
 
- //extern void interrupcion(void)
- //{
+ extern void interrupcion(void)
+ {
       //UARTO->IFLS (UARTO->IFLS & 0 0x00) I 0x00; //ver pagina 9:
-      //UART1->IM |= (0<<4) | (1<<5); 
+      UART0->IM |= (0<<4) | (1<<5); 
 //para mi uart1 el num d einterrupcion es de 6   por lo que 59/4=14.75 popr lo que tioene prioridad 1  
 //(4n+3)(4n+2)(4n+1)(4n) si n = numero de prioridad
 //   59    6      5    4
-      //NVIC->IP[1] |=(NVIC->IP[1] & 0xFF00FFFF) | (0x00400000); //
-      //NVIC->ISER[0] =(1<<6); // interrupcion 5 (un 1 en el bit 5)59-32=27
-//}
-
-extern void config_interrupt(void){
-    NVIC->IP[12] |= (0UL << 29);
-    NVIC->ISER[1] |= (1UL << 19);
-    // Pa memir
-    // NVIC->ICER[1]  = (1UL << 19);
+      NVIC->IP[1] |=(NVIC->IP[1] & 0xFF00FFFF) | (0x00400000); //
+      NVIC->ISER[0] =(1<<6); // interrupcion 5 (un 1 en el bit 5)59-32=27
 }
-
 
 extern void UARTS_ISR(void)
 { 
